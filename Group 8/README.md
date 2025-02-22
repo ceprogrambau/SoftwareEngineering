@@ -1,4 +1,4 @@
-# PC and More|| Project 8
+# PC and More
 
 ## Overview
 PC and More is a web application dedicated to providing users with a seamless experience for purchasing PC components and building custom PCs. The project integrates a chatbot, a PC hardware recognition model, and a PC AI configurator to enhance user interaction and decision-making processes.
