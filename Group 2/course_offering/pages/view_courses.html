@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>All Courses</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background-color: #f4f4f4; }
+    table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+    th { background-color: #4CAF50; color: white; }
+    h2 { text-align: center; }
+  </style>
+</head>
+<body>
+
+  <h2>Course Report</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Credits</th>
+        <th>Lec Duration</th>
+        <th>Lab Duration</th>
+        <th>Year</th>
+        <th>Semester</th>
+        <th>Lecture Mode</th>
+        <th>Lec1</th>
+        <th>Lec2</th>
+        <th>Category</th>
+        <th>Lab?</th>
+      </tr>
+    </thead>
+    <tbody id="courseTable"></tbody>
+  </table>
+
+  <script>
+    fetch("../api/fetch_courses.php")
+      .then(res => res.json())
+      .then(data => {
+        const table = document.getElementById("courseTable");
+        data.forEach(course => {
+          const row = `
+            <tr>
+              <td>${course.courseCode}</td>
+              <td>${course.courseName}</td>
+              <td>${course.credits}</td>
+              <td>${course.lecDuration}</td>
+              <td>${course.labDuration ?? '-'}</td>
+              <td>${course.aYear}</td>
+              <td>${course.semester}</td>
+              <td>${course.singleLec == 1 ? 'Single' : 'Divided'}</td>
+              <td>${course.lec1Duration ?? '-'}</td>
+              <td>${course.lec2Duration ?? '-'}</td>
+              <td>${course.cType}</td>
+              <td>${course.has_lab == 1 ? 'Yes' : 'No'}</td>
+              <td><button onclick="editCourse('${course.courseCode}')">Edit</button></td>
+            </tr>`;
+          table.innerHTML += row;
+        });
+      });
+  </script>
+  <script>
+    function editCourse(code) {
+      window.location.href = `edit_course.html?code=${code}`;
+    }
+  </script>
+  
+
+</body>
+</html>

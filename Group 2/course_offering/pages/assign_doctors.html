@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Assign Doctors to Courses</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+        .container { max-width: 800px; margin: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        .btn { padding: 10px 20px; margin-top: 15px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        .btn:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Assign Doctors to Courses</h2>
+
+    <label for="courseSelect">Select Course:</label>
+    <select id="courseSelect" onchange="loadDoctors()">
+        <option value="">-- Select a course --</option>
+    </select>
+
+    <form id="assignmentForm" onsubmit="submitAssignments(event)">
+        <table id="doctorsTable">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+        <button type="submit" class="btn">Save Assignments</button>
+    </form>
+</div>
+
+<script>
+    let courseHasLab = false;
+
+    async function loadCourses() {
+        const res = await fetch("../api/fetch_courses.php");
+        const courses = await res.json();
+        const select = document.getElementById('courseSelect');
+        select.innerHTML = '<option value="">-- Select a course --</option>';
+        courses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.courseCode;
+            option.textContent = `${course.courseCode} - ${course.courseName}`;
+            option.dataset.hasLab = course.has_lab;
+            select.appendChild(option);
+        });
+    }
+
+    async function loadDoctors() {
+        const courseSelect = document.getElementById('courseSelect');
+        const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+        const courseCode = courseSelect.value;
+        courseHasLab = selectedOption.dataset.hasLab === "1";
+
+        if (!courseCode) return;
+
+        const res = await fetch("../api/fetch_doctors.php");
+        const doctors = await res.json();
+        const tbody = document.querySelector('#doctorsTable tbody');
+        const thead = document.querySelector('#doctorsTable thead');
+
+        // Set table header
+        const headerRow = `
+            <tr>
+                <th>Doctor Name</th>
+                <th>Email</th>
+                <th>Assign</th>
+                ${courseHasLab ? '<th>Lab Instructor</th>' : ''}
+            </tr>`;
+        thead.innerHTML = headerRow;
+
+        tbody.innerHTML = '';
+        doctors.forEach(doc => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${doc.docName}</td>
+                <td>${doc.email}</td>
+                <td><input type="checkbox" name="assign_${doc.docID}" /></td>
+                ${courseHasLab ? `<td><input type="checkbox" name="lab_${doc.docID}" /></td>` : ''}
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    async function submitAssignments(e) {
+        e.preventDefault();
+        const formData = new FormData(document.getElementById('assignmentForm'));
+        const courseCode = document.getElementById('courseSelect').value;
+        if (!courseCode) return alert('Please select a course.');
+
+        const assignments = [];
+        formData.forEach((_, key) => {
+            if (key.startsWith('assign_')) {
+                const docID = key.replace('assign_', '');
+                const isLab = courseHasLab && formData.has(`lab_${docID}`) ? 1 : null;
+                assignments.push({ docID, isLabInstructor: isLab });
+            }
+        });
+
+        if (courseHasLab && !assignments.some(a => a.isLabInstructor === 1)) {
+            alert("You must assign at least one lab instructor for this course.");
+            return;
+        }
+
+        const res = await fetch("../api/save_doctor_assignment.php", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseCode, assignments, courseHasLab })
+        });
+
+        const result = await res.json();
+        alert(result.message);
+    }
+
+    loadCourses();
+</script>
+</body>
+</html>
