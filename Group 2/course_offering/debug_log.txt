@@ -1,0 +1,15 @@
+Array
+(
+    [courseCode] => comp999
+    [courseName] => test5
+    [semester] => Spring
+    [yearLevel] => 3
+    [category] => Basic science and math
+    [credits] => 5
+    [hasLab] => yes
+    [labDuration] => 90
+    [isDivided] => yes
+    [lecDuration] => 90
+    [lec1Duration] => 60
+    [lec2Duration] => 30
+)
