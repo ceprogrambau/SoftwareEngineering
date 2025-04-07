@@ -10,15 +10,15 @@ def generate_time_slots():
     return time_slots
 
 def initialize_timetable_population(pop_size):
-    courses = fd.fetch_table('courses')['course_code'].tolist()
-    rooms = fd.fetch_table('classrooms')['room_code'].tolist()
+    courses = fd.fetch_table('course')['courseCode'].tolist()
+    rooms = fd.fetch_table('classroom')['classCode'].tolist()
     timeslots = generate_time_slots()
     population = []
-    # for _ in range(pop_size):
-    #     timetable = {}
-    #     for course in courses:
-    #         assigned_timeslot = random.choice(timeslots)
-    #         assigned_room = random.choice(rooms)
-    #         timetable[course] = (assigned_timeslot, assigned_room)
-    #     population.append(timetable)
+    for _ in range(pop_size):
+        timetable = {}
+        for course in courses:
+            assigned_timeslot = random.choice(timeslots)
+            assigned_room = random.choice(rooms)
+            timetable[course] = (assigned_timeslot, assigned_room)
+        population.append(timetable)
     return population
