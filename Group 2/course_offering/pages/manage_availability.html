@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Manage Doctor Availability</title>
+    <style>
+        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; text-align: center; }
+        .container { background: #fff; max-width: 600px; margin: auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; text-align: center; }
+        th { background-color: #4CAF50; color: white; }
+        .button { padding: 10px; width: 100%; margin-top: 10px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .button:hover { background-color: #45a049; }
+        .reset-btn { background-color: red; }
+        .reset-btn:hover { background-color: darkred; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Manage Doctor Availability</h2>
+    <label for="doctorSelect">Select a Doctor:</label>
+    <select id="doctorSelect" onchange="loadAvailability()">
+        <option value="">Select a Doctor</option>
+    </select>
+
+    <h3>Select Availability</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Time Slot</th>
+                <th>Monday</th>
+                <th>Tuesday</th>
+                <th>Wednesday</th>
+                <th>Thursday</th>
+            </tr>
+        </thead>
+        <tbody id="availabilityTable"></tbody>
+    </table>
+
+    <button class="button" onclick="saveAvailability()">Save Availability</button>
+    <button class="button reset-btn" onclick="resetAvailability()">Reset Selections</button>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        loadDoctors();
+        generateTimeSlots();
+    });
+
+    function loadDoctors() {
+        fetch("../api/fetch_doctors.php")
+            .then(res => res.json())
+            .then(response => {
+                if (!response.success) {
+                    throw new Error(response.message || 'Failed to load doctors');
+                }
+                
+                let select = document.getElementById("doctorSelect");
+                select.innerHTML = '<option value="">Select a Doctor</option>';
+                response.data.forEach(doc => {
+                    select.innerHTML += `<option value="${doc.docID}">${doc.docName}</option>`;
+                });
+            })
+            .catch(error => {
+                console.error('Error loading doctors:', error);
+                alert('Error loading doctors: ' + error.message);
+            });
+    }
+
+    function generateTimeSlots() {
+        const slots = [
+            "8:00 - 8:30", "8:30 - 9:00", "9:00 - 9:30", "9:30 - 10:00",
+            "10:00 - 10:30", "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00",
+            "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30", "1:30 - 2:00",
+            "2:00 - 2:30", "2:30 - 3:00", "3:00 - 3:30", "3:30 - 4:00"
+        ];
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday"];
+        let tbody = document.getElementById("availabilityTable");
+        tbody.innerHTML = "";
+
+        slots.forEach((slot, i) => {
+            let row = `<tr><td>${slot}</td>`;
+            days.forEach(day => {
+                row += `<td><input type="checkbox" name="${day}" value="${i}"></td>`;
+            });
+            row += `</tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function loadAvailability() {
+        const doctorId = document.getElementById("doctorSelect").value;
+        if (!doctorId) return resetAvailability();
+
+        fetch(`../api/get_availability.php?doctorId=${doctorId}`)
+            .then(res => res.json())
+            .then(data => {
+                resetAvailability();
+                for (let i = 0; i < 16; i++) {
+                    ["Monday", "Tuesday", "Wednesday", "Thursday"].forEach(day => {
+                        let bitmask = parseInt(data[day.toLowerCase()] || 0);
+                        let cb = document.querySelector(`input[name="${day}"][value="${i}"]`);
+                        if (cb && (bitmask & (1 << i))) cb.checked = true;
+                    });
+                }
+            });
+    }
+
+    function saveAvailability() {
+        const doctorId = document.getElementById("doctorSelect").value;
+        if (!doctorId || doctorId === "undefined") {
+            alert("Please select a doctor.");
+            return;
+        }
+
+        const availability = {
+            Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0
+        };
+
+        document.querySelectorAll("input[type='checkbox']:checked").forEach(cb => {
+            const bit = parseInt(cb.value);
+            availability[cb.name] |= (1 << bit);
+        });
+
+        fetch("../api/save_availability.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ doctorId, availability })
+        })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.success || data.error || "Something went wrong.");
+            });
+    }
+
+    function resetAvailability() {
+        document.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = false);
+    }
+</script>
+</body>
+</html>

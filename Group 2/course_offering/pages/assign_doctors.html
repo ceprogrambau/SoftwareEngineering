@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Assign Doctors to Courses</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+    .container { max-width: 800px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #4CAF50; color: white; }
+    .btn { padding: 10px 20px; margin-top: 15px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    .btn:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Assign Doctors to Courses</h2>
+
+  <label for="courseSelect">Select Course:</label>
+  <select id="courseSelect" onchange="loadDoctors()">
+    <option value="">-- Select a course --</option>
+  </select>
+
+  <form id="assignmentForm" onsubmit="submitAssignments(event)">
+    <table id="doctorsTable">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+    <button type="submit" class="btn">Save Assignments</button>
+  </form>
+</div>
+
+<script>
+  let courseHasLab = false;
+
+  // 1. Load courses from API and populate the course select box
+  async function loadCourses() {
+    const res = await fetch("../api/fetch_courses.php");
+    const courses = await res.json();
+    const select = document.getElementById("courseSelect");
+    select.innerHTML = '<option value="">-- Select a course --</option>';
+    courses.forEach(course => {
+      const option = document.createElement("option");
+      option.value = course.courseCode;  // e.g. "COMP101"
+      option.textContent = `${course.courseCode} - ${course.courseName}`;
+      // course.has_lab is "1" if the course has a lab, otherwise "0"
+      option.dataset.hasLab = course.has_lab;
+      select.appendChild(option);
+    });
+  }
+
+  // 2. When a course is chosen, load doctors and show the appropriate columns
+  async function loadDoctors() {
+    try {
+      const courseSelect = document.getElementById("courseSelect");
+      const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+      const courseCode = courseSelect.value;
+      if (!courseCode) return;
+
+      // Determine if this course has a lab
+      courseHasLab = (selectedOption.dataset.hasLab === "1");
+
+      // Fetch the doctors list
+      const res = await fetch("../api/fetch_doctors.php");
+      const response = await res.json();
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to load doctors');
+      }
+      
+      const doctors = response.data;
+
+      // Build table header
+      const thead = document.querySelector("#doctorsTable thead");
+      let headerRow = `
+        <tr>
+          <th>Doctor Name</th>
+          <th>Email</th>
+          <th>Lecturer</th>
+      `;
+      if (courseHasLab) {
+        headerRow += `<th>Lab Instructor</th>`;
+      }
+      headerRow += `</tr>`;
+      thead.innerHTML = headerRow;
+
+      // Build table body
+      const tbody = document.querySelector("#doctorsTable tbody");
+      tbody.innerHTML = "";
+      doctors.forEach(doc => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${doc.docName}</td>
+          <td>${doc.email}</td>
+          <td><input type="checkbox" name="assign_${doc.docID}" /></td>
+          ${courseHasLab ? `<td><input type="checkbox" name="lab_${doc.docID}" /></td>` : ""}
+        `;
+        tbody.appendChild(row);
+      });
+    } catch (error) {
+      alert('Error loading doctors: ' + error.message);
+      console.error('Error:', error);
+    }
+  }
+
+  // 3. On form submission, build assignments array and validate
+  async function submitAssignments(e) {
+    e.preventDefault();
+
+    const courseCode = document.getElementById("courseSelect").value;
+    if (!courseCode) {
+      alert("Please select a course first.");
+      return;
+    }
+
+    // We'll track if at least one lecturer is assigned
+    let lecturerFound = false;
+    // If the course has a lab, we also need at least one lab instructor
+    let labFound = false;
+
+    const assignments = [];
+    const rows = document.querySelectorAll("#doctorsTable tbody tr");
+    rows.forEach(row => {
+      // We can find both checkboxes independently
+      const assignCheckbox = row.querySelector('input[name^="assign_"]');
+      const labCheckbox = row.querySelector('input[name^="lab_"]');
+
+      // Extract docID from assign's name or lab's name (both share docID part)
+      // If there's no "assign_" in the row, you can do something else
+      let docID = null;
+      if (assignCheckbox) {
+        const assignName = assignCheckbox.getAttribute("name");  // e.g. "assign_ABC123"
+        docID = assignName.replace("assign_", ""); 
+      } else if (labCheckbox) {
+        // fallback if there's no "assign_" in a row
+        const labName = labCheckbox.getAttribute("name"); // e.g. "lab_ABC123"
+        docID = labName.replace("lab_", "");
+      }
+
+      // If docID is still null, skip
+      if (!docID) return;
+
+      // isLecturer = 1 if the user checked "assign"
+      let isLecturer = (assignCheckbox && assignCheckbox.checked) ? 1 : 0;
+      if (isLecturer === 1) lecturerFound = true;
+
+      // isLabInstructor = 1 if the user checked "lab" AND the course has a lab
+      let isLabInstructor = 0;
+      if (courseHasLab && labCheckbox && labCheckbox.checked) {
+        isLabInstructor = 1;
+        labFound = true;
+      }
+
+      // If the user didn't check either one, skip this doc
+      if (isLecturer === 0 && isLabInstructor === 0) {
+        return;
+      }
+
+      // Otherwise, record the doc in assignments
+      assignments.push({ docID, isLecturer, isLabInstructor });
+    });
+
+    // Validate: we must have at least one lecturer
+    if (!lecturerFound) {
+      alert("You must assign at least one lecturer for this course.");
+      return;
+    }
+
+    // If the course has a lab, we must have at least one lab instructor
+    if (courseHasLab && !labFound) {
+      alert("This course requires a lab instructor. Please select at least one lab instructor.");
+      return;
+    }
+
+    // Now we can send to the backend
+    const payload = {
+      courseCode,
+      assignments,       // array of { docID, isLecturer, isLabInstructor }
+      courseHasLab       // boolean or "0"/"1"
+    };
+
+    const response = await fetch("../api/save_doctor_assignment.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    alert(result.message || "Assignments saved successfully");
+  }
+
+  // Load the courses initially
+  loadCourses();
+</script>
+</body>
+</html>
