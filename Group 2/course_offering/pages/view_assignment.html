@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Doctor Assignments</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+    th { background-color: #4CAF50; color: white; }
+    .yes { color: green; font-weight: bold; }
+    .no { color: #666; }
+  </style>
+</head>
+<body>
+  <h2>Doctor-Course Assignments</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Course Code</th>
+        <th>Course Name</th>
+        <th>Doctor Name</th>
+        <th>Email</th>
+        <th>Lecturer</th>
+        <th>Lab Instructor</th>
+      </tr>
+    </thead>
+    <tbody id="assignmentTable"></tbody>
+  </table>
+
+  <script>
+    async function loadAssignments() {
+      try {
+        const res = await fetch("../api/fetch_assignments.php");
+        const response = await res.json();
+        
+        if (!response.success) {
+          throw new Error(response.message || 'Failed to load assignments');
+        }
+
+        const tbody = document.getElementById('assignmentTable');
+        tbody.innerHTML = '';
+
+        response.data.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${row.courseCode}</td>
+            <td>${row.courseName}</td>
+            <td>${row.docName}</td>
+            <td>${row.email}</td>
+            <td class="${row.isLecturer.toLowerCase()}">${row.isLecturer}</td>
+            <td class="${row.isLabInstructor.toLowerCase()}">${row.isLabInstructor}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error loading assignments: ' + error.message);
+      }
+    }
+
+    loadAssignments();
+  </script>
+</body>
+</html>

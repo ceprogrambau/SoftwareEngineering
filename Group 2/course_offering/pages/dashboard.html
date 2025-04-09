@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .dashboard-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        .button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <h2>Welcome, Admin!</h2>
+        <a href="./add_doctor.html" class="button">Add Doctor</a>
+        <a href="./manage_availability.html" class="button">Manage Doctor Availability</a>
+        <a href="./add_course.html" class="button">Add Course</a>
+        <a href="./manage_sections.html" class="button">Add Sections</a>
+        <a href="./drs_data.html" class="button">View Doctors Data</a>
+        <a href="./view_courses.html" class="button">View courses data</a>
+        <a href="./assign_doctors.html" class="button">assign doctors to courses</a>
+        <a href="./view_assignment.html" class="button">view assignment</a>
+    </div>
+
+</body>
+</html>
