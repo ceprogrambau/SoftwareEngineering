@@ -12,27 +12,45 @@ def generate_time_slots():
 
 def initialize_timetable_population(pop_size, courses_df, rooms_df):
     timeslots = generate_time_slots()
+    
+    # Group timeslots by day
+    timeslots_by_day = {}
+    for day in ['M', 'T', 'W', 'T']:
+        day_slots = [slot for slot in timeslots if slot.startswith(day)]
+        # Exclude last 3 slots of each day
+        timeslots_by_day[day] = day_slots[:-3]
+    
     courses_with_lab = courses_df[courses_df['has_lab'] == 1]
     courses_without_lab = courses_df[courses_df['has_lab'] == 0]
     room_for_lec = rooms_df[rooms_df['equipment'] == 'Lecture']
     room_for_lab = rooms_df[rooms_df['equipment'] != 'Lecture']
+    
     population = []
     for _ in range(pop_size):
         timetable = {}
         for x,course in courses_without_lab.iterrows():
-            # start_timeslot = random.choice(timeslots)
-            # assigned_room = random.choice(room_for_lec['classCode'].tolist())
-            # end_timeslot = timeslots[timeslots.index(start_timeslot) + course[course['lec1duration']]]
-            # timetable[course['courseCode']] = (start_timeslot, assigned_room)
-            print(course)
-        # for course in courses_with_lab:
-            # start_timeslot = random.choice(timeslots)
-            # assigned_room = random.choice(room_for_lec['classCode'].tolist())
-            # end_timeslot = timeslots[timeslots.index(start_timeslot) + course[course['lec1duration']]]
-            # timetable[course['courseCode']] = (start_timeslot, assigned_room)
-            # start_timeslot = random.choice(timeslots)
-            # assigned_room = random.choice(room_for_lab['classCode'].tolist())
-            # timetable[course['courseCode']+'_lab'] = (start_timeslot, assigned_room)
+            # Choose a random day and then a random timeslot from that day
+            day = random.choice(list(timeslots_by_day.keys()))
+            start_timeslot = random.choice(timeslots_by_day[day])
+            assigned_room = random.choice(room_for_lec['classCode'].tolist())
+            end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['lec1duration']/30)]
+            timetable[course['courseCode']] = (start_timeslot, assigned_room, end_timeslot)
+            
+        for x,course in courses_with_lab.iterrows():
+            # Choose a random day and then a random timeslot from that day
+            day = random.choice(list(timeslots_by_day.keys()))
+            start_timeslot = random.choice(timeslots_by_day[day])
+            assigned_room = random.choice(room_for_lec['classCode'].tolist())
+            end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['lec1duration']/30)]
+            timetable[course['courseCode']] = (start_timeslot, assigned_room, end_timeslot)
+            
+            # Choose a different day for the lab
+            lab_day = random.choice([d for d in list(timeslots_by_day.keys()) if d != day])
+            start_timeslot = random.choice(timeslots_by_day[lab_day])
+            assigned_room = random.choice(room_for_lab['classCode'].tolist())
+            end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['labDuration']/30)]
+            timetable[course['courseCode']+'_lab'] = (start_timeslot, assigned_room, end_timeslot)
+            
         population.append(timetable)
     
     return population
