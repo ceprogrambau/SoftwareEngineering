@@ -7,81 +7,63 @@ import math
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def generate_time_slots():
-    days = ['M', 'T', 'W', 'Th']
+    days = ['M', 'T', 'W', 'H']
     time_slots = []
     for day in days:
         for hour in range(8, 16):  
             time_slots.append(f"{day} {hour}:00")
             time_slots.append(f"{day} {hour}:30")
+        time_slots.append(f"{day} {16}:00")    
     return time_slots
 
 def initialize_timetable_population(pop_size, courses_df, rooms_df, student_df):
     timeslots = generate_time_slots()
-    days = ['M', 'T', 'W', 'Th']
+    days = ['M', 'T', 'W', 'H']
     timeslots_by_day = {}
     for day in days:
         day_slots = [slot for slot in timeslots if slot.startswith(day)]
-        timeslots_by_day[day] = day_slots[:-3]
-    
+        timeslots_by_day[day] = day_slots[:-4]#all days and times except the last 4
+
     room_for_lec = rooms_df[rooms_df['equipment'] == 'Lecture']
     room_for_lab = rooms_df[rooms_df['equipment'] != 'Lecture']
 
-    
     population = []
     for _ in range(pop_size):
         timetable = {}
         courses_df = courses_df[courses_df['cType'] == "CE core"]
-        for x, course in courses_df.iterrows():
-            
-
-            
-            available_slots = timeslots_by_day[day][:-3]  # Exclude last 3 slots
-            
+        for x, course in courses_df.iterrows():                       
             #assign first lecture
-            start_timeslot = random.choice(available_slots)
-            assigned_room = random.choice(room_for_lec['classCode'].tolist())          
-            try:
-                end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['lec1duration']/30)]
-            except IndexError:
-                continue
-            timetable[course['courseCode']] = (start_timeslot, assigned_room, end_timeslot)
+            day = random.choice(days)  # First choose a random day
+            start_timeslot = random.choice(timeslots_by_day[day])  # Then choose a random timeslot from that day
+            assigned_room = random.choice(room_for_lec['classCode'].tolist())     
+            end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['lec1duration']/30)]
+            timetable[course['courseCode']] = (start_timeslot, end_timeslot, assigned_room)
             
             #check if the course has a second lecture
             if course['singleLec'] == 0:
-                lec2duration = course['lec2duration']
-                if days.index(day) == 0 or days.index(day) == 1:
+                if day == 'M' or day == "T":
                     day = days[days.index(day) + 2]
                 else:
                     day = days[days.index(day) - 2]
                 # Extract the time part from the first lecture's timeslot
                 time_part = start_timeslot.split()[1]
                 start_timeslot2 = f"{day} {time_part}"
-                try:
-                    end_timeslot2 = timeslots[timeslots.index(start_timeslot2) + int(lec2duration/30)]
-                except IndexError:
-                    continue
-                timetable[course['courseCode']+'_lec2'] = (start_timeslot2, assigned_room, end_timeslot2)
+                end_timeslot2 = timeslots[timeslots.index(start_timeslot2) + int(course['lec2duration']/30)]
+
+                timetable[course['courseCode']+'_lec2'] = (start_timeslot2, end_timeslot2, assigned_room)
 
             #check if the course has a lab
             if course['has_lab'] == 1:
                 year = course['aYear']  
-                student_series = student_df[student_df['year'] == str(year)]['studentQuantity'].iloc[0]
-                student_number = int(student_series)
+                student_number = int(student_df[student_df['year'] == str(year)]['studentQuantity'].iloc[0])
                 number_of_sections = math.ceil(student_number/24)
                 for i in range(number_of_sections):
-                    lab_day = random.choice([d for d in list(timeslots_by_day.keys()) if d != day])
-                    available_slots = timeslots_by_day[lab_day][:-3]  # Exclude last 3 slots
-                    start_timeslot = random.choice(available_slots)
+                    lab_day = random.choice(days)
+                    start_timeslot = random.choice(timeslots_by_day[lab_day])
                     assigned_room = random.choice(room_for_lab['classCode'].tolist())
-                    
-                    try:
-                        end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['labDuration']/30)]
-                    except IndexError:
-                        continue
-                        
+                    end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['labDuration']/30)]
                     timetable[course['courseCode']+'_lab'+str(i)] = (start_timeslot, assigned_room, end_timeslot)
-           
-            
+             
         population.append(timetable)
     
     return population

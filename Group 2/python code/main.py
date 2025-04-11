@@ -1,9 +1,9 @@
 import algorithm
 import fetch_data as fd
-
+import time
 def tabulate(timetable):
     # Group entries by day
-    days = ['M', 'T', 'W', 'Th']
+    days = ['M', 'T', 'W', 'H']
     day_schedules = {day: [] for day in days}
     
     # Sort entries by day and time
@@ -34,7 +34,10 @@ rooms_df = fd.fetch_table('classroom')
 professors_df = fd.fetch_table('doctors')
 student_df = fd.fetch_table('student')
 
-population = algorithm.initialize_timetable_population(1, courses_df, rooms_df,student_df)
+start_time = time.time()
+population = algorithm.initialize_timetable_population(500, courses_df, rooms_df,student_df)
+end_time = time.time()
+print(f"Time taken: {end_time - start_time} seconds to generate 500 population")
 
 for timetable in population:
     tabulate(timetable)
