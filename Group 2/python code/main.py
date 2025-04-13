@@ -35,9 +35,9 @@ professors_df = fd.fetch_table('doctors')
 student_df = fd.fetch_table('student')
 
 start_time = time.time()
-population = algorithm.initialize_timetable_population(500, courses_df, rooms_df,student_df)
+population = algorithm.initialize_timetable_population(2, courses_df, rooms_df,student_df)
 end_time = time.time()
 print(f"Time taken: {end_time - start_time} seconds to generate 500 population")
 
 for timetable in population:
-    tabulate(timetable)
+    print(timetable)
