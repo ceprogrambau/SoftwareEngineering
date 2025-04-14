@@ -7,7 +7,7 @@ def tabulate(timetable):
     day_schedules = {day: [] for day in days}
     
     # Sort entries by day and time
-    for course_code, (start_time, room, end_time) in timetable.items():
+    for course_code, (start_time, end_time, room) in timetable.items():
         day = start_time.split()[0]  
         if day in day_schedules:
             day_schedules[day].append((start_time, end_time, course_code, room))
@@ -35,9 +35,11 @@ professors_df = fd.fetch_table('doctors')
 student_df = fd.fetch_table('student')
 
 start_time = time.time()
-population = algorithm.initialize_timetable_population(2, courses_df, rooms_df,student_df)
+population = algorithm.initialize_timetable_population(1    , courses_df, rooms_df,student_df)
 end_time = time.time()
-print(f"Time taken: {end_time - start_time} seconds to generate 500 population")
+print(f"Time taken: {end_time - start_time}")
 
 for timetable in population:
-    print(timetable)
+    x = algorithm.calculate_fitness(timetable, rooms_df, courses_df, professors_df, student_df)
+    if x == 1:
+        print(1)

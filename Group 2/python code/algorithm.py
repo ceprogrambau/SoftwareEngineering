@@ -30,8 +30,8 @@ def initialize_timetable_population(pop_size, courses_df, rooms_df, student_df):
     population = []
     for _ in range(pop_size):
         timetable = {}
-        courses_df = courses_df[courses_df['cType'] == "CE core"]
-        for x, course in courses_df.iterrows():                       
+        courses = courses_df[courses_df['cType'] == "CE core"]
+        for x, course in courses.iterrows():                      
             #assign first lecture
             day = random.choice(days)  # First choose a random day
             start_timeslot = random.choice(timeslots_by_day[day])  # Then choose a random timeslot from that day
@@ -60,56 +60,58 @@ def initialize_timetable_population(pop_size, courses_df, rooms_df, student_df):
                 for i in range(number_of_sections):
                     lab_day = random.choice(days)
                     start_timeslot = random.choice(timeslots_by_day[lab_day])
-                    assigned_room = random.choice(room_for_lab['classCode'].tolist())
+                    rooms_for_this_lab = room_for_lab[room_for_lab['equipment'] == course['lab_equipment']]
+                    assigned_room = random.choice(rooms_for_this_lab['classCode'].tolist())
                     end_timeslot = timeslots[timeslots.index(start_timeslot) + int(course['labDuration']/30)]
-                    timetable[course['courseCode']+'_lab'+str(i)] = (start_timeslot, assigned_room, end_timeslot)
+                    timetable[course['courseCode']+'_lab'+str(i)] = (start_timeslot, end_timeslot, assigned_room)
              
         population.append(timetable)
     
     return population
 
 def calculate_fitness(timetable, rooms, courses_df, professors_df, student_df):
-    total_score = 0
+    total_score = 1
     max_score = 0
+
+    timeslots = generate_time_slots()
     
     courses = {row['courseCode']: row for _, row in courses_df.iterrows()}
     professors = {row['docID']: row for _, row in professors_df.iterrows()}
-    rooms_dict = {room['classCode']: room for room in rooms}
+    rooms_dict = {row['classCode']: row for _, row in rooms.iterrows()}
     
-    student_quantities = {row['courseCode']: row['studentCount'] for _, row in student_df.iterrows()}
+    student_quantities = {row['year']: row['studentQuantity'] for _, row in student_df.iterrows()}
     
     professor_schedule = defaultdict(set)
     room_schedule = defaultdict(set)
     
-    for course_code, (timeslot, room_code, end_timeslot) in timetable.items():
-        course = courses[course_code]
-        room = rooms_dict.get(room_code)
-        
-        if not room:
-            continue
-        
-        student_quantity = student_quantities.get(course_code, 60)
-        
-        if student_quantity <= room['capacity']:
-            total_score += 0.3
-        
-        if not course.get('equipmentRequired') or room.get('equipment'):
-            total_score += 0.2
-        
-        professor_code = course.get('professorCode')
-        if professor_code and timeslot not in professor_schedule[professor_code]:
-            total_score += 0.3
-        
-        if timeslot not in room_schedule[room_code]:
-            total_score += 0.2
-        
-        if professor_code:
-            professor_schedule[professor_code].add(timeslot)
-        room_schedule[room_code].add(timeslot)
-        
-        max_score += 1.0
-    
-    return total_score / max_score if max_score > 0 else 0
+    # Track courses in each room
+    courses_by_room = defaultdict(list)
+    for course_code, (start_time, end_time, room) in timetable.items():
+        courses_by_room[room].append(course_code)
+    # Check for room conflicts (same room, overlapping times)
+    for room, course_list in courses_by_room.items():
+        for i in range(len(course_list)):
+            for j in range(i + 1, len(course_list)):
+                course1 = course_list[i]
+                course2 = course_list[j]
+                
+                start1, end1, _ = timetable[course1]
+                start2, end2, _ = timetable[course2]
+                
+                # Check if courses are on same day
+                if start1.split()[0] == start2.split()[0]:
+                    # Get indices in timeslots list
+                    start1_idx = timeslots.index(start1)
+                    end1_idx = timeslots.index(end1)
+                    start2_idx = timeslots.index(start2)
+                    end2_idx = timeslots.index(end2)
+                    
+                    # Check for overlap
+                    if (start1_idx <= start2_idx < end1_idx) or (start2_idx <= start1_idx < end2_idx):
+                        total_score = 0
+                        print(start1, end1, start2, end2)
+    return total_score
+
 
 def crossover(parent1, parent2):
     child = {}
@@ -124,17 +126,19 @@ def mutate(timetable, rooms_df):
     if not timetable:
         return
     course_code = random.choice(list(timetable.keys()))
-    timeslot, room, end_timeslot = timetable[course_code]
+    timeslot, end_timeslot, room = timetable[course_code]
 
     if random.random() > 0.5:
+        slots = ["00", "30"]
         day = timeslot.split()[0]
         new_hour = random.randint(8, 15)
-        new_timeslot = f"{day} {new_hour}:00"
-        timetable[course_code] = (new_timeslot, room, end_timeslot)
+        new_slot = random.choice(slots)
+        new_timeslot = f"{day} {new_hour}:{new_slot}"
+        new_end_timeslot = str(new_hour + (int(end_timeslot.split()[1]) - int(timeslot.split()[1]) + int(new_timeslot.split()[1]))) + new_slot
+        timetable[course_code] = (new_timeslot, room, new_end_timeslot)
     else:
         new_room = random.choice(rooms_df['classCode'].tolist())
         timetable[course_code] = (timeslot, new_room, end_timeslot)
-
 
 def evaluate_population(population, rooms, courses_df, professors_df, student_df):
     evaluated_population = []
