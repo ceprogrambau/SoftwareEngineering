@@ -1,9 +1,10 @@
 <?php
 include '../db.php';
 
-$sql = "SELECT d.docName, d.email, s.monday, s.tuesday, s.wednesday, s.thursday
+$sql = "SELECT d.docID, d.docName, s.monday, s.tuesday, s.wednesday, s.thursday
         FROM doctors d
-        INNER JOIN docSchedule s ON d.docID = s.docID";
+        INNER JOIN docSchedule s ON d.docID = s.docID
+        ORDER BY d.docID";
 
 $result = $conn->query($sql);
 

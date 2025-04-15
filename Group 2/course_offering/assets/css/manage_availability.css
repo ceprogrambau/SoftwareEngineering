@@ -1,0 +1,118 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    background-image: url('../../images/background.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat; 
+    background-attachment: fixed;  
+}
+
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 40px;
+    background-color: #d9d8d6;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 28px;
+    color: #222222;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.doctor-select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dddddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.availability-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th {
+    background-color: #3a4c5a;
+    color: white;
+}
+
+th, td {
+    border: 1px solid #ccc;
+    text-align: center;
+    height: 48px;
+    padding: 0;
+}
+
+.button {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    background-color: #3a3a3a;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: #3a4c5a;
+}
+
+.button.danger {
+    background-color: #dc3545;
+}
+
+.button.danger:hover {
+    background-color: #c82333;
+}
+
+.cell-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    background-color: #f0f0f0;
+    transition: background-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.cell-content input[type="checkbox"] {
+    display: none;
+}
+
+.cell-content:hover {
+    background-color: #e0e0e0;
+}
+
+.cell-content.selected {
+    background-color: #3a4c5a;
+    color: white;
+}
+
+.cell-content.dragging {
+    background-color: #5c6b75;
+}

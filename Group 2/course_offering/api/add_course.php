@@ -13,42 +13,103 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $category    = trim($_POST['category']);
     $credits     = intval($_POST['credits']);
 
-    // Optional numeric fields; default to 0 if not provided or invalid
-    $labDuration  = (isset($_POST['labDuration']) && is_numeric($_POST['labDuration'])) ? intval($_POST['labDuration']) : 0;
-    $lecDuration  = (isset($_POST['lecDuration']) && is_numeric($_POST['lecDuration'])) ? intval($_POST['lecDuration']) : 0;
-    $lec1Duration = (isset($_POST['lec1Duration']) && is_numeric($_POST['lec1Duration'])) ? intval($_POST['lec1Duration']) : 0;
-    
-    // Calculate lec2Duration as total lecture time minus lecture 1 time (ensure it's not negative)
-    $lec2Duration = max(0, $lecDuration - $lec1Duration);
+    // Get durations
+    $lecDuration = intval($_POST['lecDuration']);
+    $lec1Duration = !empty($_POST['lec1Duration']) ? intval($_POST['lec1Duration']) : $lecDuration;
+    $lec2Duration = intval($_POST['lec2Duration']);
+    $labDuration = intval($_POST['labDuration']);
 
-    // Optional: validate that lec1Duration is not greater than lecDuration
+    // Derive has_lab from labDuration
+    $has_lab = ($labDuration > 0) ? 1 : 0;
+
+    // Derive singleLec from lec2Duration
+    $singleLec = ($lec2Duration == 0) ? 1 : 0;
+
+    // Lab equipment is only required if has_lab is true
+    $lab_equipment = ($has_lab == 1) ? $_POST['labEquipment'] : null;
+
+    // Validate the data
     if ($lec1Duration > $lecDuration) {
-        die("Lecture 1 duration cannot exceed total lecture duration.");
+        die(json_encode([
+            'success' => false,
+            'message' => 'First lecture duration cannot exceed total lecture duration'
+        ]));
+    }
+
+    if ($has_lab && empty($lab_equipment)) {
+        die(json_encode([
+            'success' => false,
+            'message' => 'Lab equipment type is required for courses with lab'
+        ]));
     }
 
     // Prepare the SQL INSERT statement
-    $stmt = $conn->prepare("INSERT INTO course (courseCode, courseName, semester, aYear, cType, credits, labDuration, lecDuration, lec1Duration, lec2Duration) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $sql = "INSERT INTO course (
+        courseCode, 
+        courseName, 
+        credits, 
+        lecDuration, 
+        labDuration, 
+        aYear, 
+        semester, 
+        singleLec, 
+        lec1Duration, 
+        lec2Duration, 
+        cType,
+        has_lab,
+        lab_equipment
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conn->prepare($sql);
     if (!$stmt) {
-        die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+        die(json_encode([
+            'success' => false,
+            'message' => "Prepare failed: " . $conn->error
+        ]));
     }
 
     // Bind parameters:
     // "sssssiiiii" means:
     //   - 5 strings: courseCode, courseName, semester, yearLevel, category
-    //   - 5 integers: credits, labDuration, lecDuration, lec1Duration, lec2Duration
-    $stmt->bind_param("sssssiiiii", $courseCode, $courseName, $semester, $yearLevel, $category, $credits, $labDuration, $lecDuration, $lec1Duration, $lec2Duration);
+    //   - 5 integers: credits, lecDuration, labDuration, lec1Duration, lec2Duration
+    //   - 1 boolean: has_lab
+    //   - 1 string: lab_equipment
+    $stmt->bind_param("ssiiiisisssiss", 
+        $courseCode,
+        $courseName, 
+        $credits, 
+        $lecDuration, 
+        $labDuration, 
+        $yearLevel, 
+        $semester, 
+        $singleLec, 
+        $lec1Duration, 
+        $lec2Duration, 
+        $category,
+        $has_lab,
+        $lab_equipment
+    );
 
     // Execute the statement
     if ($stmt->execute()) {
-        echo "Course added successfully.";
+        echo json_encode([
+            'success' => true,
+            'message' => "Course added successfully"
+        ]);
     } else {
-        echo "Error adding course: " . $stmt->error;
+        echo json_encode([
+            'success' => false,
+            'message' => "Error adding course: " . $stmt->error
+        ]);
     }
 
     // Clean up
     $stmt->close();
     $conn->close();
 } else {
-    echo "Invalid request method.";
+    echo json_encode([
+        'success' => false,
+        'message' => "Invalid request method"
+    ]);
 }
 ?>

@@ -1,71 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>All Courses</title>
-  <style>
-    body { font-family: Arial; padding: 20px; background-color: #f4f4f4; }
-    table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
-    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-    th { background-color: #4CAF50; color: white; }
-    h2 { text-align: center; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Courses</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/courses.css">
 </head>
 <body>
+    <div class="container">
+        <h2>Course List</h2>
+        <div class="table-container">
+            <div id="loading" class="loading">Loading courses...</div>
+            <div id="noData" class="no-data" style="display: none;">No courses found.</div>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            
+            <table id="coursesTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Course Code</th>
+                        <th>Course Name</th>
+                        <th>Credits</th>
+                        <th>Type</th>
+                        <th>Semester</th>
+                        <th>Year</th>
+                        <th>Lecture Format</th>
+                        <th>Lecture Hours</th>
+                        <th>Has Lab</th>
+                        <th>Lab Hours</th>
+                        <th>Lab Equipment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 
-  <h2>Course Report</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Code</th>
-        <th>Name</th>
-        <th>Credits</th>
-        <th>Lec Duration</th>
-        <th>Lab Duration</th>
-        <th>Year</th>
-        <th>Semester</th>
-        <th>Lecture Mode</th>
-        <th>Lec1</th>
-        <th>Lec2</th>
-        <th>Category</th>
-        <th>Lab?</th>
-      </tr>
-    </thead>
-    <tbody id="courseTable"></tbody>
-  </table>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadCourses);
 
-  <script>
-    fetch("../api/fetch_courses.php")
-      .then(res => res.json())
-      .then(data => {
-        const table = document.getElementById("courseTable");
-        data.forEach(course => {
-          const row = `
-            <tr>
-              <td>${course.courseCode}</td>
-              <td>${course.courseName}</td>
-              <td>${course.credits}</td>
-              <td>${course.lecDuration}</td>
-              <td>${course.labDuration ?? '-'}</td>
-              <td>${course.aYear}</td>
-              <td>${course.semester}</td>
-              <td>${course.singleLec == 1 ? 'Single' : 'Divided'}</td>
-              <td>${course.lec1Duration ?? '-'}</td>
-              <td>${course.lec2Duration ?? '-'}</td>
-              <td>${course.cType}</td>
-              <td>${course.has_lab == 1 ? 'Yes' : 'No'}</td>
-              <td><button onclick="editCourse('${course.courseCode}')">Edit</button></td>
-            </tr>`;
-          table.innerHTML += row;
-        });
-      });
-  </script>
-  <script>
-    function editCourse(code) {
-      window.location.href = `edit_course.html?code=${code}`;
-    }
-  </script>
-  
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('coursesTable').style.display = 'none';
+        }
 
+        function showLoading(show = true) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('noData').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('coursesTable').style.display = 'none';
+        }
+
+        function formatLectureHours(course) {
+            if (course.singleLec) {
+                return course.lecDuration ? course.lecDuration : '-';
+            }
+            return `Lec1: ${course.lec1duration || '-'}, Lec2: ${course.lec2duration || '-'}`;
+        }
+
+        function getCategoryClass(type) {
+            if (!type) return '';
+            switch (type.toLowerCase()) {
+                case 'mandatory': return 'category-mandatory';
+                case 'elective': return 'category-elective';
+                case 'optional': return 'category-optional';
+                default: return '';
+            }
+        }
+
+        async function loadCourses() {
+            showLoading(true);
+
+            try {
+                const response = await fetch('../api/fetch_courses.php?purpose=view');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Received data:', data); // Debug log
+
+                if (!data.success) {
+                    throw new Error(data.message || 'Failed to load courses');
+                }
+
+                if (!data.data || data.data.length === 0) {
+                    document.getElementById('noData').style.display = 'block';
+                    return;
+                }
+
+                const tbody = document.querySelector('#coursesTable tbody');
+                tbody.innerHTML = '';
+
+                data.data.forEach(course => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${course.courseCode || '-'}</td>
+                        <td>${course.courseName || '-'}</td>
+                        <td class="text-center">${course.credits || '-'}</td>
+                        <td class="text-center ${getCategoryClass(course.cType)}">
+                            ${course.cType || '-'}
+                        </td>
+                        <td class="text-center">${course.semester || '-'}</td>
+                        <td class="text-center">${course.aYear || '-'}</td>
+                        <td class="text-center">
+                            <span class="status-indicator ${course.singleLec ? 'yes' : 'no'}">
+                                ${course.singleLec ? 'Single' : 'Split'}
+                            </span>
+                        </td>
+                        <td class="text-center">${formatLectureHours(course)}</td>
+                        <td class="text-center">
+                            <span class="status-indicator ${course.has_lab ? 'yes' : 'no'}">
+                                ${course.has_lab ? 'Yes' : 'No'}
+                            </span>
+                        </td>
+                        <td class="text-center">${course.labDuration || '-'}</td>
+                        <td>${course.lab_equipment || '-'}</td>
+                        <td class="text-center">
+                            <button class="action-btn edit-btn" onclick="editCourse('${course.courseCode}')">
+                                Edit
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('coursesTable').style.display = 'table';
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Error loading courses: ' + error.message);
+            }
+        }
+
+        function editCourse(courseCode) {
+            if (!courseCode) return;
+            window.location.href = `edit_course.html?code=${encodeURIComponent(courseCode)}`;
+        }
+    </script>
 </body>
 </html>

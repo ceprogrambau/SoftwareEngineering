@@ -1,73 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Doctor Schedule (Raw)</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background-color: #f9f9f9;
-      padding: 30px;
-    }
-    table {
-      width: 90%;
-      margin: auto;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-    }
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-    h2 {
-      margin-bottom: 20px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Schedule Data</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/courses.css">
 </head>
 <body>
+    <div class="container">
+        <h2>Doctor Schedule Data</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Doctor ID</th>
+                        <th>Doctor Name</th>
+                        <th>Monday</th>
+                        <th>Tuesday</th>
+                        <th>Wednesday</th>
+                        <th>Thursday</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTableBody">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+            <div id="loading" class="loading" style="display: none;">Loading schedule data...</div>
+            <div id="noData" class="no-data" style="display: none;">No schedule data available.</div>
+        </div>
+    </div>
 
-<h2>Doctor Raw Schedule Data</h2>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDoctorSchedule();
+        });
 
-<table>
-  <thead>
-    <tr>
-      <th>Doctor Name</th>
-      <th>Email</th>
-      <th>Monday</th>
-      <th>Tuesday</th>
-      <th>Wednesday</th>
-      <th>Thursday</th>
-    </tr>
-  </thead>
-  <tbody id="doctorTable"></tbody>
-</table>
+        function loadDoctorSchedule() {
+            const loadingEl = document.getElementById('loading');
+            const noDataEl = document.getElementById('noData');
+            const tbody = document.getElementById('scheduleTableBody');
+            
+            loadingEl.style.display = 'block';
+            tbody.innerHTML = '';
+            noDataEl.style.display = 'none';
 
-<script>
-  fetch("../api/fetch_doctor_schedule.php")
-    .then(res => res.json())
-    .then(data => {
-      const tbody = document.getElementById("doctorTable");
-      tbody.innerHTML = "";
+            fetch('../api/fetch_doctor_schedule.php')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingEl.style.display = 'none';
+                    
+                    if (!data || data.length === 0) {
+                        noDataEl.style.display = 'block';
+                        return;
+                    }
 
-      data.forEach(row => {
-        tbody.innerHTML += `
-          <tr>
-            <td>${row.docName}</td>
-            <td>${row.email}</td>
-            <td>${row.monday}</td>
-            <td>${row.tuesday}</td>
-            <td>${row.wednesday}</td>
-            <td>${row.thursday}</td>
-          </tr>
-        `;
-      });
-    })
-    .catch(err => console.error("Error loading data:", err));
-</script>
+                    data.forEach(schedule => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${schedule.docID}</td>
+                            <td>${schedule.docName}</td>
+                            <td>${formatSchedule(schedule.monday)}</td>
+                            <td>${formatSchedule(schedule.tuesday)}</td>
+                            <td>${formatSchedule(schedule.wednesday)}</td>
+                            <td>${formatSchedule(schedule.thursday)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    loadingEl.style.display = 'none';
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-error';
+                    alertDiv.textContent = error.message || 'Error loading schedule. Please try again.';
+                    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.table-container'));
+                });
+        }
 
+        function formatSchedule(value) {
+            if (!value) return '-';
+            return value;
+        }
+    </script>
 </body>
 </html>

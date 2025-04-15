@@ -4,63 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .login-container {
-            background-color: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 300px;
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            font-size: 14px;
-            margin-bottom: 5px;
-            display: block;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .form-group input[type="submit"] {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .form-group input[type="submit"]:hover {
-            background-color: #45a049;
-        }
-        .error {
-            color: red;
-            font-size: 12px;
-            text-align: center;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/login.css">
 </head>
 <body>
-
-    <div class="login-container">
-        <h2>Login</h2>
+    <div class="login-wrapper">
+        <div class="login-header">
+            <h2>Login</h2>
+        </div>
         <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
@@ -79,19 +31,15 @@
 
     <script>
         document.getElementById("loginForm").addEventListener("submit", function(event) {
-            event.preventDefault(); // Prevent form submission
+            event.preventDefault();
 
-            // Get entered username and password
             var username = document.getElementById("username").value;
             var password = document.getElementById("password").value;
-
-            // Correct credentials
             var correctUsername = "adminAbed";
-            var correctPassword = "CrS0ffering"; // Set the correct password
+            var correctPassword = "CrS0ffering";
 
             if (username === correctUsername && password === correctPassword) {
-                alert("Login successful!");
-                window.location.href = "./dashboard.html"; // Redirect to another page
+                window.location.href = "./dashboard.html";
             } else {
                 document.getElementById("error-message").textContent = "Invalid username or password!";
             }
