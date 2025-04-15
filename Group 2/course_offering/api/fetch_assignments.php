@@ -5,10 +5,14 @@ require '../db.php';
 $sql = "SELECT 
             d.docName,
             d.email,
+            d.docID,
             c.courseCode,
             c.courseName,
-            IF(dtc.isLecturer = 1, 'Yes', 'No') AS isLecturer,
-            IF(dtc.isLabInstructor = 1, 'Yes', 'No') AS isLabInstructor
+            CASE 
+                WHEN dtc.isLecturer = 1 THEN 'Lecturer'
+                WHEN dtc.isLabInstructor = 1 THEN 'Lab Instructor'
+                ELSE 'Unknown'
+            END as role
         FROM doc_teach_course dtc
         JOIN doctors d ON dtc.docID = d.docID
         JOIN course c ON dtc.courseCode = c.courseCode

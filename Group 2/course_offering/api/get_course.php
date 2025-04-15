@@ -1,7 +1,17 @@
 <?php
 require '../db.php';
 
+header('Content-Type: application/json');
+
 $code = $_GET['code'] ?? '';
+
+if (empty($code)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Course code is required'
+    ]);
+    exit;
+}
 
 $sql = "SELECT * FROM course WHERE courseCode = ?";
 $stmt = $conn->prepare($sql);
@@ -10,8 +20,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($row = $result->fetch_assoc()) {
-    echo json_encode($row);
+    echo json_encode([
+        'success' => true,
+        'data' => $row
+    ]);
 } else {
-    echo json_encode(["error" => "Course not found."]);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Course not found'
+    ]);
 }
+
+$stmt->close();
+$conn->close();
 ?>

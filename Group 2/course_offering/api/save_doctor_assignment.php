@@ -24,7 +24,7 @@ $conn->begin_transaction();
 
 try {
     // 1) Validate that the course exists and check its lab status
-    $courseSQL = "SELECT has_lab FROM course WHERE courseCode = ?";
+    $courseSQL = "SELECT labDuration > 0 as has_lab FROM course WHERE courseCode = ?";
     $courseStmt = $conn->prepare($courseSQL);
     if (!$courseStmt) {
         throw new Exception("Course validation prepare failed: " . $conn->error);
@@ -39,6 +39,9 @@ try {
     
     $courseData = $courseResult->fetch_assoc();
     $dbHasLab = (bool)$courseData['has_lab'];
+    
+    // Convert courseHasLab to boolean for comparison
+    $courseHasLab = filter_var($courseHasLab, FILTER_VALIDATE_BOOLEAN);
     
     // Ensure courseHasLab matches the database
     if ($courseHasLab !== $dbHasLab) {
