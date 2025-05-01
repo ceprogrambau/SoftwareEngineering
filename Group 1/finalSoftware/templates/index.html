@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SmartSchedule - Student Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.7/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.7/index.global.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f4f4;
+      margin: 2rem;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #007BFF;
+    }
+    form {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    input[type="text"], input[type="password"] {
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #calendar {
+      margin-top: 2rem;
+    }
+    .dropdown-container {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 5px;
+    }
+    .dropdown-container select {
+      margin-right: 1rem;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+    }
+    .tooltip {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      padding: 5px;
+      border-radius: 5px;
+      font-size: 12px;
+      z-index: 10001;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SmartSchedule</h1>
+    <form method="POST">
+      <input type="text" name="student_id" placeholder="Enter Student ID" required />
+      <input type="password" name="password" placeholder="Enter Password" required />
+      <button type="submit">Login</button>
+    </form>
+
+    {% if error_message %}
+      <p style="color: red;">⚠️ {{ error_message }}</p>
+    {% endif %}
+
+    {% if schedule %}
+      <h2>Schedule for Student ID {{ student_id }}</h2>
+
+      <div class="dropdown-container">
+        <h3>Switch Sections:</h3>
+        {% for course in schedule %}
+          {% if alternatives.get(course.course_code) %}
+            <label>{{ course.course_code }}:</label>
+            <select onchange="switchCRN('{{ course.course_code }}', this.value)">
+              <option value="{{ course.crn }}">Current ({{ course.crn }})</option>
+              {% for alt in alternatives[course.course_code] %}
+                {% if alt.crn != course.crn %}
+                  <option value="{{ alt.crn }}">
+                    {{ alt.crn }} -
+                    {% for session in alt.sessions %}
+                      <span class="session-time" data-start="{{ session.start }}" data-end="{{ session.end }}">
+                        {{ session.day }}: {{ (session.start // 60) | int }}:{{ '%02d' % (session.start % 60) }} -
+                        {{ (session.end // 60) | int }}:{{ '%02d' % (session.end % 60) }}
+                      </span>
+                      {% if not loop.last %} | {% endif %}
+                    {% endfor %}
+                  </option>
+                {% endif %}
+              {% endfor %}
+            </select><br/>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div id="calendar"></div>
+
+      <script>
+        const calendarEvents = [
+          {% for course in schedule %}
+            {% for session in course.sessions %}
+              {
+                id: '{{ course.course_code }}',
+                crn: '{{ course.crn }}',
+                course_code: '{{ course.course_code }}',
+                title: '{{ course.course_code }} - {{ course.name|safe }} ({{ session.type }})',
+                instructor: '{{ session.instructor }}',
+                room: '{{ session.room }}',
+                credits: '{{ course.credits }}',
+                daysOfWeek: ['{{ session.day[:3]|lower|replace("mon","1")|replace("tue","2")|replace("wed","3")|replace("thu","4")|replace("fri","5")|replace("sat","6")|replace("sun","0") }}'],
+                startTime: '{{ (session.start // 60) | int }}:{{ '%02d' % (session.start % 60) }}',
+                endTime: '{{ (session.end // 60) | int }}:{{ '%02d' % (session.end % 60) }}',
+                backgroundColor: '{{ course_colors[course.course_code] }}',
+                borderColor: '{{ course_colors[course.course_code] }}',
+              },
+            {% endfor %}
+          {% endfor %}
+        ];
+
+        const alternatives = {{ alternatives | tojson }};
+
+        document.addEventListener('DOMContentLoaded', function () {
+          const calendarEl = document.getElementById('calendar');
+          const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGridWeek',
+            firstDay: 1,
+            allDaySlot: false,
+            height: 'auto',
+            slotMinTime: "08:00:00",
+            slotMaxTime: "20:00:00",
+            events: calendarEvents,
+            eventDidMount: function(info) {
+              const tooltip = document.createElement('div');
+              tooltip.classList.add('tooltip');
+              tooltip.innerHTML = `
+                <strong>Course Code:</strong> ${info.event.extendedProps.course_code} <br>
+                <strong>CRN:</strong> ${info.event.extendedProps.crn} <br>
+                <strong>Instructor:</strong> ${info.event.extendedProps.instructor} <br>
+                <strong>Room:</strong> ${info.event.extendedProps.room} <br>
+                <strong>Credits:</strong> ${info.event.extendedProps.credits}
+              `;
+              document.body.appendChild(tooltip);
+
+              info.el.addEventListener('mouseenter', () => {
+                tooltip.style.display = 'block';
+              });
+
+              info.el.addEventListener('mousemove', e => {
+                tooltip.style.left = (e.pageX + 10) + 'px';
+                tooltip.style.top = (e.pageY + 10) + 'px';
+              });
+
+              info.el.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+              });
+            }
+          });
+
+          calendar.render();
+
+          window.switchCRN = function(courseCode, newCrn) {
+            let selectedAlt = alternatives[courseCode]?.find(alt => alt.crn == newCrn);
+
+            if (!selectedAlt) {
+              const originalEvents = calendarEvents.filter(ev => ev.course_code === courseCode && ev.crn == newCrn);
+
+              if (!originalEvents.length) {
+                return;
+              }
+
+              selectedAlt = {
+                course_code: courseCode,
+                credits: originalEvents[0].credits,
+                crn: newCrn,
+                name: originalEvents[0].title.split(' - ')[1].split('(')[0].trim(),
+                sessions: originalEvents.map(ev => ({
+                  day: numberToDay(parseInt(ev.daysOfWeek[0])),
+                  start: timeToMinutes(ev.startTime),
+                  end: timeToMinutes(ev.endTime),
+                  instructor: ev.instructor,
+                  room: ev.room,
+                  type: ev.title.includes('Lab') ? 'Lab' : 'Lecture'
+                }))
+              };
+            }
+
+            calendar.getEvents().forEach(event => {
+              if (event.extendedProps.course_code === courseCode) {
+                event.remove();
+              }
+            });
+
+            let conflict = false;
+
+            selectedAlt.sessions.forEach(session => {
+              const event = {
+                title: `${courseCode} - ${selectedAlt.name} (${session.type})`,
+                daysOfWeek: [dayToNumber(session.day)],
+                startTime: minutesToTime(session.start),
+                endTime: minutesToTime(session.end),
+                extendedProps: {
+                  crn: selectedAlt.crn,
+                  course_code: courseCode,
+                  instructor: session.instructor,
+                  room: session.room,
+                  credits: selectedAlt.credits,
+                },
+                backgroundColor: '{{ course_colors["' + courseCode + '"] }}',
+                borderColor: '{{ course_colors["' + courseCode + '"] }}',
+              };
+
+              calendar.getEvents().forEach(existing => {
+                const existingDay = existing.start.getDay();
+                const newDay = event.daysOfWeek[0];
+
+                const existingStartMinutes = existing.start.getHours() * 60 + existing.start.getMinutes();
+                const existingEndMinutes = existing.end.getHours() * 60 + existing.end.getMinutes();
+
+                const newStartMinutes = timeToMinutes(event.startTime);
+                const newEndMinutes = timeToMinutes(event.endTime);
+
+                if (existingDay == newDay &&
+                    newStartMinutes < existingEndMinutes &&
+                    newEndMinutes > existingStartMinutes) {
+                  conflict = true;
+                }
+              });
+
+              if (!conflict) {
+                calendar.addEvent(event);
+              }
+            });
+
+            if (conflict) {
+              alert("⚠️ Conflict detected! Cannot switch to this section.");
+              calendar.refetchEvents();
+            }
+          }
+
+          function minutesToTime(minutes) {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          }
+
+          function timeToMinutes(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+          }
+
+          function dayToNumber(day) {
+            switch(day.toLowerCase().slice(0,3)) {
+              case 'mon': return 1;
+              case 'tue': return 2;
+              case 'wed': return 3;
+              case 'thu': return 4;
+              case 'fri': return 5;
+              case 'sat': return 6;
+              case 'sun': return 0;
+              default: return 1;
+            }
+          }
+
+          function numberToDay(number) {
+            switch (number) {
+              case 1: return 'Monday';
+              case 2: return 'Tuesday';
+              case 3: return 'Wednesday';
+              case 4: return 'Thursday';
+              case 5: return 'Friday';
+              case 6: return 'Saturday';
+              case 0: return 'Sunday';
+              default: return 'Monday';
+            }
+          }
+        });
+      </script>
+
+    {% elif student_id %}
+      <p style="color: red;">⚠️ No eligible courses found or invalid student ID.</p>
+    {% endif %}
+  </div>
+</body>
+</html>
