@@ -1,0 +1,182 @@
+@import url('variables.css');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-image: url('../../images/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat; 
+    background-position: center center;
+    background-attachment: fixed;      
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 40px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 28px;
+    color: #222222;
+}
+
+.course-selection {
+    margin-bottom: 30px;
+}
+
+label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #222222;
+}
+
+select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #222222;
+    transition: border-color 0.3s ease;
+}
+
+select:focus {
+    outline: none;
+    border-color: #3a4c5a;
+    box-shadow: 0 0 0 2px rgba(58, 76, 90, 0.1);
+}
+
+.table-container {
+    margin: 20px 0;
+    overflow-x: auto;
+    border-radius: 5px;
+    background-color: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ccc;
+}
+
+th {
+    background-color: #2c2c2c;
+    color: white;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+tr:hover {
+    background-color: rgba(58, 76, 90, 0.05);
+}
+
+.checkbox-cell {
+    text-align: center;
+}
+
+/* Custom Checkbox Styling */
+.checkbox-container {
+    display: inline-block;
+    position: relative;
+    padding-left: 25px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 20px;
+    width: 20px;
+    background-color: white;
+    border: 2px solid #ccc;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.checkbox-container:hover .checkmark {
+    border-color: #3a4c5a;
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: #2c2c2c;
+    border-color: #2c2c2c;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 4px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.save-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background-color: #2c2c2c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.save-btn:hover {
+    background-color: #3a4c5a;
+}
+
+.save-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(58, 76, 90, 0.3);
+}
+
+@media (max-width: 768px) {
+    .container {
+        margin: 20px;
+        padding: 20px;
+    }
+
+    th, td {
+        padding: 10px;
+    }
+} 

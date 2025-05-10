@@ -1,50 +1,73 @@
 <?php
 header('Content-Type: application/json');
-include '../db.php';
+require '../db.php';
 
-if ($conn->connect_error) {
-    echo json_encode(["error" => "Connection failed: " . $conn->connect_error]);
-    exit();
+// Get the raw POST data and decode it
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
+
+if (!$data) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Invalid JSON data received: ' . json_last_error_msg()
+    ]);
+    exit;
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
+$doctorId = $data['doctorId'] ?? null;
+$availability = $data['availability'] ?? null;
 
-if (!isset($data['doctorId']) || !isset($data['availability'])) {
-    echo json_encode(["error" => "Invalid input data"]);
-    exit();
+if (!$doctorId || !$availability) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Missing required data: doctorId or availability'
+    ]);
+    exit;
 }
 
+try {
+    // First check if the record exists
+    $checkStmt = $conn->prepare("SELECT docID FROM docSchedule WHERE docID = ?");
+    $checkStmt->bind_param("s", $doctorId);
+    $checkStmt->execute();
+    $result = $checkStmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        // Update existing record
+        $stmt = $conn->prepare("UPDATE docSchedule SET monday = ?, tuesday = ?, wednesday = ?, thursday = ? WHERE docID = ?");
+        $stmt->bind_param("iiiss", 
+            $availability['monday'],
+            $availability['tuesday'],
+            $availability['wednesday'],
+            $availability['thursday'],
+            $doctorId
+        );
+    } else {
+        // Insert new record
+        $stmt = $conn->prepare("INSERT INTO docSchedule (docID, monday, tuesday, wednesday, thursday) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("siiii", 
+            $doctorId,
+            $availability['monday'],
+            $availability['tuesday'],
+            $availability['wednesday'],
+            $availability['thursday']
+        );
+    }
 
-$doctorId = $data['doctorId'];
-$availability = $data['availability'];
+    if ($stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        throw new Exception($stmt->error);
+    }
 
-$monday = $availability['Monday'];
-$tuesday = $availability['Tuesday'];
-$wednesday = $availability['Wednesday'];
-$thursday = $availability['Thursday'];
-
-$sql = "INSERT INTO docSchedule (docID, monday, tuesday, wednesday, thursday)
-        VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE 
-            monday = VALUES(monday),
-            tuesday = VALUES(tuesday),
-            wednesday = VALUES(wednesday),
-            thursday = VALUES(thursday)";
-
-$stmt = $conn->prepare($sql);
-if (!$stmt) {
-    echo json_encode(["error" => "SQL error: " . $conn->error]);
-    exit();
+} catch (Exception $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database error: ' . $e->getMessage()
+    ]);
+} finally {
+    if (isset($stmt)) $stmt->close();
+    if (isset($checkStmt)) $checkStmt->close();
+    if (isset($conn)) $conn->close();
 }
-
-$stmt->bind_param("siiii", $doctorId, $monday, $tuesday, $wednesday, $thursday);
-
-if ($stmt->execute()) {
-    echo json_encode(["success" => "Availability saved successfully"]);
-} else {
-    echo json_encode(["error" => "Error saving: " . $stmt->error]);
-}
-
-$stmt->close();
-$conn->close();
 ?>

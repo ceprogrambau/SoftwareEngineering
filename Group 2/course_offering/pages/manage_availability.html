@@ -1,142 +1,288 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Doctor Availability</title>
-    <style>
-        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; text-align: center; }
-        .container { background: #fff; max-width: 600px; margin: auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid black; padding: 10px; text-align: center; }
-        th { background-color: #4CAF50; color: white; }
-        .button { padding: 10px; width: 100%; margin-top: 10px; font-size: 16px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .button:hover { background-color: #45a049; }
-        .reset-btn { background-color: red; }
-        .reset-btn:hover { background-color: darkred; }
-    </style>
+    <link rel="stylesheet" href="../assets/css/manage_availability.css">
 </head>
 <body>
-<div class="container">
-    <h2>Manage Doctor Availability</h2>
-    <label for="doctorSelect">Select a Doctor:</label>
-    <select id="doctorSelect" onchange="loadAvailability()">
-        <option value="">Select a Doctor</option>
-    </select>
+    <div class="container">
+        <h1>Manage Doctor Availability</h1>
 
-    <h3>Select Availability</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Time Slot</th>
-                <th>Monday</th>
-                <th>Tuesday</th>
-                <th>Wednesday</th>
-                <th>Thursday</th>
-            </tr>
-        </thead>
-        <tbody id="availabilityTable"></tbody>
-    </table>
+        <div class="form-group">
+            <label for="doctorSelect">Select Doctor:</label>
+            <select id="doctorSelect" class="doctor-select">
+                <option value="">Select a doctor...</option>
+            </select>
+        </div>
 
-    <button class="button" onclick="saveAvailability()">Save Availability</button>
-    <button class="button reset-btn" onclick="resetAvailability()">Reset Selections</button>
-</div>
+        <table class="availability-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                </tr>
+            </thead>
+            <tbody id="availabilityTableBody">
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        loadDoctors();
-        generateTimeSlots();
+        <div class="action-buttons">
+            <button class="button" onclick="saveAvailability()">Save Availability</button>
+            <button class="button danger" onclick="resetAvailability()">Reset</button>
+        </div>
+    </div>
+
+    <script>
+const timeSlots = [
+    "8:00 - 8:30", "8:30 - 9:00", "9:00 - 9:30", "9:30 - 10:00",
+    "10:00 - 10:30", "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00",
+    "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30", "1:30 - 2:00",
+    "2:00 - 2:30", "2:30 - 3:00", "3:00 - 3:30", "3:30 - 4:00"
+];
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+
+let isDragging = false;
+let isSelecting = false;
+let dragCells = new Set();
+let mouseDownTime = 0;
+let mouseDownPos = { x: 0, y: 0 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDoctors();
+    document.getElementById('doctorSelect').addEventListener('change', function() {
+        if (this.value) loadAvailability(this.value);
+        else document.getElementById('availabilityTableBody').innerHTML = '';
+    });
+    
+    // Add global mouse event listeners
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('mouseleave', handleDragEnd);
+    document.addEventListener('selectstart', e => { if (isDragging) e.preventDefault(); });
+});
+
+function loadDoctors() {
+    fetch('../api/fetch_doctors.php?purpose=availability')
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.message);
+            const select = document.getElementById('doctorSelect');
+            select.innerHTML = '<option value="">Select a doctor...</option>';
+            data.data.forEach(doc => {
+                const opt = document.createElement('option');
+                opt.value = doc.docID;
+                opt.textContent = `${doc.docName} (${doc.email})`;
+                select.appendChild(opt);
+            });
+        })
+        .catch(err => {
+            console.error('Error loading doctors:', err);
+            alert('Error loading doctors: ' + err.message);
+        });
+}
+
+function loadAvailability(doctorId) {
+    fetch(`../api/get_availability.php?doctorId=${doctorId}`)
+        .then(res => res.json())
+        .then(response => {
+            if (!response.success) {
+                throw new Error(response.message || 'Failed to load availability');
+            }
+            const data = response.data;
+            const tbody = document.getElementById('availabilityTableBody');
+            tbody.innerHTML = '';
+            timeSlots.forEach((slot, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td class="time-slot">${slot}</td>`;
+                days.forEach(day => {
+                    const dayData = data[day.toLowerCase()] || 0;
+                    const checked = (parseInt(dayData) & (1 << idx)) !== 0;
+                    const cellContent = document.createElement('div');
+                    cellContent.className = 'cell-content';
+                    cellContent.dataset.day = day;
+                    cellContent.dataset.timeIndex = idx;
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = day;
+                    checkbox.value = idx;
+                    checkbox.style.display = 'none';
+                    checkbox.checked = checked;
+
+                    if (checked) {
+                        cellContent.classList.add('selected');
+                        cellContent.style.backgroundColor = '#3a4c5a';
+                    }
+
+                    cellContent.appendChild(checkbox);
+                    
+                    // Add event listeners
+                    cellContent.addEventListener('mousedown', handleDragStart);
+                    cellContent.addEventListener('mouseenter', handleDragEnter);
+                    cellContent.addEventListener('click', handleClick);
+
+                    const cell = document.createElement('td');
+                    cell.appendChild(cellContent);
+                    row.appendChild(cell);
+                });
+                tbody.appendChild(row);
+            });
+        })
+        .catch(err => {
+            console.error('Error loading availability:', err);
+            alert('Error loading availability: ' + err.message);
+        });
+}
+
+function handleDragStart(e) {
+    const cell = e.target.closest('.cell-content');
+    if (!cell || e.button !== 0) return;
+
+    mouseDownTime = Date.now();
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+    
+    isDragging = true;
+    isSelecting = !cell.querySelector('input').checked;
+    dragCells.clear();
+    toggleCell(cell, isSelecting);
+    dragCells.add(cell);
+    cell.classList.add('dragging');
+    e.preventDefault();
+}
+
+function handleDragEnter(e) {
+    if (!isDragging) return;
+    const cell = e.target.closest('.cell-content');
+    if (!cell || dragCells.has(cell)) return;
+
+    // Calculate distance moved
+    const distance = Math.sqrt(
+        Math.pow(e.clientX - mouseDownPos.x, 2) + 
+        Math.pow(e.clientY - mouseDownPos.y, 2)
+    );
+
+    // If we've moved more than 5 pixels, it's definitely a drag
+    if (distance > 5) {
+        toggleCell(cell, isSelecting);
+        dragCells.add(cell);
+        cell.classList.add('dragging');
+    }
+}
+
+function handleDragEnd(e) {
+    if (!isDragging) return;
+    
+    const cell = e.target.closest('.cell-content');
+    if (cell) {
+        // If it was a quick click (less than 200ms) and barely moved, treat it as a click
+        const timeDiff = Date.now() - mouseDownTime;
+        const distance = Math.sqrt(
+            Math.pow(e.clientX - mouseDownPos.x, 2) + 
+            Math.pow(e.clientY - mouseDownPos.y, 2)
+        );
+        
+        if (timeDiff < 200 && distance < 5 && dragCells.size <= 1) {
+            toggleCell(cell);
+        }
+    }
+    
+    isDragging = false;
+    dragCells.forEach(cell => cell.classList.remove('dragging'));
+    dragCells.clear();
+}
+
+function handleClick(e) {
+    const cell = e.target.closest('.cell-content');
+    if (!cell || isDragging) return;
+    toggleCell(cell);
+}
+
+function toggleCell(cell, forceState = null) {
+    const checkbox = cell.querySelector('input');
+    if (!checkbox) return;
+    
+    const state = forceState !== null ? forceState : !checkbox.checked;
+    checkbox.checked = state;
+    cell.classList.toggle('selected', state);
+    cell.style.backgroundColor = state ? '#3a4c5a' : '#f0f0f0';
+}
+
+function saveAvailability() {
+    const doctorId = document.getElementById('doctorSelect').value;
+    if (!doctorId) {
+        alert('Please select a doctor first.');
+        return;
+    }
+
+    // Initialize availability object
+    const availability = {
+        monday: 0,
+        tuesday: 0,
+        wednesday: 0,
+        thursday: 0
+    };
+
+    // Collect checked boxes for each day
+    days.forEach(day => {
+        const dayLower = day.toLowerCase();
+        const checkedBoxes = document.querySelectorAll(`input[name="${day}"]:checked`);
+        checkedBoxes.forEach(checkbox => {
+            const bitPosition = parseInt(checkbox.value);
+            availability[dayLower] |= (1 << bitPosition);
+        });
     });
 
-    function loadDoctors() {
-        fetch("../api/fetch_doctors.php")
-            .then(res => res.json())
-            .then(response => {
-                if (!response.success) {
-                    throw new Error(response.message || 'Failed to load doctors');
-                }
-                
-                let select = document.getElementById("doctorSelect");
-                select.innerHTML = '<option value="">Select a Doctor</option>';
-                response.data.forEach(doc => {
-                    select.innerHTML += `<option value="${doc.docID}">${doc.docName}</option>`;
-                });
-            })
-            .catch(error => {
-                console.error('Error loading doctors:', error);
-                alert('Error loading doctors: ' + error.message);
-            });
-    }
+    // Prepare the request data
+    const requestData = {
+        doctorId: doctorId,
+        availability: availability
+    };
 
-    function generateTimeSlots() {
-        const slots = [
-            "8:00 - 8:30", "8:30 - 9:00", "9:00 - 9:30", "9:30 - 10:00",
-            "10:00 - 10:30", "10:30 - 11:00", "11:00 - 11:30", "11:30 - 12:00",
-            "12:00 - 12:30", "12:30 - 1:00", "1:00 - 1:30", "1:30 - 2:00",
-            "2:00 - 2:30", "2:30 - 3:00", "3:00 - 3:30", "3:30 - 4:00"
-        ];
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday"];
-        let tbody = document.getElementById("availabilityTable");
-        tbody.innerHTML = "";
+    // Log the data being sent (for debugging)
+    console.log('Sending data:', requestData);
 
-        slots.forEach((slot, i) => {
-            let row = `<tr><td>${slot}</td>`;
-            days.forEach(day => {
-                row += `<td><input type="checkbox" name="${day}" value="${i}"></td>`;
-            });
-            row += `</tr>`;
-            tbody.innerHTML += row;
-        });
-    }
-
-    function loadAvailability() {
-        const doctorId = document.getElementById("doctorSelect").value;
-        if (!doctorId) return resetAvailability();
-
-        fetch(`../api/get_availability.php?doctorId=${doctorId}`)
-            .then(res => res.json())
-            .then(data => {
-                resetAvailability();
-                for (let i = 0; i < 16; i++) {
-                    ["Monday", "Tuesday", "Wednesday", "Thursday"].forEach(day => {
-                        let bitmask = parseInt(data[day.toLowerCase()] || 0);
-                        let cb = document.querySelector(`input[name="${day}"][value="${i}"]`);
-                        if (cb && (bitmask & (1 << i))) cb.checked = true;
-                    });
-                }
-            });
-    }
-
-    function saveAvailability() {
-        const doctorId = document.getElementById("doctorSelect").value;
-        if (!doctorId || doctorId === "undefined") {
-            alert("Please select a doctor.");
-            return;
+    // Send the request
+    fetch('../api/save_availability.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
         }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            alert('Availability saved successfully!');
+        } else {
+            throw new Error(data.message || 'Failed to save availability');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving availability:', error);
+        alert('Error saving availability: ' + error.message);
+    });
+}
 
-        const availability = {
-            Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0
-        };
-
-        document.querySelectorAll("input[type='checkbox']:checked").forEach(cb => {
-            const bit = parseInt(cb.value);
-            availability[cb.name] |= (1 << bit);
+function resetAvailability() {
+    if (confirm('Reset all availability?')) {
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+            const cell = cb.closest('.cell-content');
+            cell.classList.remove('selected');
+            cell.style.backgroundColor = '#f0f0f0';
         });
-
-        fetch("../api/save_availability.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ doctorId, availability })
-        })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.success || data.error || "Something went wrong.");
-            });
     }
-
-    function resetAvailability() {
-        document.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = false);
-    }
-</script>
+}
+    </script>
 </body>
 </html>

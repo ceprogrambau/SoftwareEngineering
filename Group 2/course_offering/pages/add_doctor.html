@@ -4,75 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Doctor</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 400px;
-        }
-        h2 {
-            margin-bottom: 20px;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        .button {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .button:hover {
-            background-color: #45a049;
-        }
-        #responseMessage {
-            margin-top: 15px;
-            font-weight: bold;
-            color: #333;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/doctors.css">
 </head>
 <body>
-
-    <div class="container">
-        <h2>Add Doctor</h2>
+    <div class="doctors-wrapper">
+        <div class="doctors-header">
+            <h2>Add Doctor</h2>
+        </div>
         <form action="../api/add_doctor.php" method="POST">
-            <input type="text" name="doctorName" placeholder="Doctor's Name" required>
-            <input type="email" name="email" placeholder="Doctor's Email" required>
-            <input type="text" name="doctorID" placeholder="Doctor's ID" required>
-
-            <button type="submit" class="button">Save Doctor</button>
+            <div class="form-group">
+                <label for="doctorName">Doctor's Name</label>
+                <input type="text" id="doctorName" name="doctorName" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Doctor's Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="doctorID">Doctor's ID</label>
+                <input type="text" id="doctorID" name="doctorID" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Save Doctor</button>
+            </div>
         </form>
-        <p id="responseMessage">
-            <?php if (isset($_GET['message'])) echo htmlspecialchars($_GET['message']); ?>
-        </p>
+        <p id="responseMessage"></p>
     </div>
 
+    <script>
+        // Optional: Add client-side form validation and response handling
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const responseMessage = document.getElementById('responseMessage');
+            responseMessage.className = ''; // Reset classes
+            
+            // You could add more validation here if needed
+            if (!this.checkValidity()) {
+                e.preventDefault();
+                responseMessage.textContent = 'Please fill in all required fields correctly.';
+                responseMessage.classList.add('error');
+            }
+        });
+    </script>
 </body>
 </html>

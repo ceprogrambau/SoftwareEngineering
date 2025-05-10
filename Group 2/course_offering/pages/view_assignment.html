@@ -2,64 +2,143 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Doctor Assignments</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background-color: #4CAF50; color: white; }
-    .yes { color: green; font-weight: bold; }
-    .no { color: #666; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Doctor-Course Assignments</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/courses.css">
+  <link rel="stylesheet" href="../assets/css/view_assignment.css">
 </head>
 <body>
-  <h2>Doctor-Course Assignments</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Course Code</th>
-        <th>Course Name</th>
-        <th>Doctor Name</th>
-        <th>Email</th>
-        <th>Lecturer</th>
-        <th>Lab Instructor</th>
-      </tr>
-    </thead>
-    <tbody id="assignmentTable"></tbody>
-  </table>
+  <div class="container">
+    <h2>Doctor-Course Assignments</h2>
+    
+    <div class="table-container">
+      <div id="loading" class="loading">Loading assignments...</div>
+      <div id="noData" class="no-data" style="display: none;">No assignments found.</div>
+      <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+      <table id="assignmentsTable" style="display: none;">
+        <thead>
+          <tr>
+            <th>Course Code</th>
+            <th>Course Name</th>
+            <th>Doctor Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
+    document.addEventListener('DOMContentLoaded', loadAssignments);
+
+    function showError(message) {
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('assignmentsTable').style.display = 'none';
+    }
+
+    function showLoading(show = true) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+      document.getElementById('noData').style.display = 'none';
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+
     async function loadAssignments() {
+      showLoading(true);
+      const table = document.getElementById('assignmentsTable');
+      const tbody = table.querySelector('tbody');
+      tbody.innerHTML = '';
+      table.style.display = 'none';
+
       try {
-        const res = await fetch("../api/fetch_assignments.php");
-        const response = await res.json();
-        
-        if (!response.success) {
-          throw new Error(response.message || 'Failed to load assignments');
+        const response = await fetch('../api/fetch_assignments.php');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const tbody = document.getElementById('assignmentTable');
-        tbody.innerHTML = '';
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to load assignments');
+        }
 
-        response.data.forEach(row => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${row.courseCode}</td>
-            <td>${row.courseName}</td>
-            <td>${row.docName}</td>
-            <td>${row.email}</td>
-            <td class="${row.isLecturer.toLowerCase()}">${row.isLecturer}</td>
-            <td class="${row.isLabInstructor.toLowerCase()}">${row.isLabInstructor}</td>
+        if (!data.data || data.data.length === 0) {
+          document.getElementById('noData').style.display = 'block';
+          showLoading(false);
+          return;
+        }
+
+        data.data.forEach(assignment => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${assignment.courseCode}</td>
+            <td>${assignment.courseName}</td>
+            <td>${assignment.docName}</td>
+            <td>${assignment.email}</td>
+            <td>
+              <span class="role-badge ${assignment.role.toLowerCase().replace(' ', '-')}">
+                ${assignment.role}
+              </span>
+            </td>
+            <td>
+              <button class="action-btn remove-btn" 
+                onclick="removeAssignment('${assignment.courseCode}', '${assignment.docID}', '${assignment.role}')">
+                Remove
+              </button>
+            </td>
           `;
-          tbody.appendChild(tr);
+          tbody.appendChild(row);
         });
+
+        table.style.display = 'table';
+        showLoading(false);
+
       } catch (error) {
         console.error('Error:', error);
-        alert('Error loading assignments: ' + error.message);
+        showError('Error loading assignments: ' + error.message);
       }
     }
 
-    loadAssignments();
+    async function removeAssignment(courseCode, docID, role) {
+      if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()} assignment?`)) {
+        return;
+      }
+
+      showLoading(true);
+
+      try {
+        const response = await fetch('../api/remove_assignment.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            courseCode,
+            docID,
+            role
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to remove assignment');
+        }
+
+        await loadAssignments(); // Reload the assignments table
+
+      } catch (error) {
+        console.error('Error:', error);
+        showError('Error removing assignment: ' + error.message);
+      }
+    }
   </script>
 </body>
 </html>

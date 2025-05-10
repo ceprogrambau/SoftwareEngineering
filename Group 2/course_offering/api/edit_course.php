@@ -3,83 +3,100 @@ header("Content-Type: application/json");
 include '../db.php';
 
 // Retrieve form data from POST
-$courseCode   = trim($_POST['courseCode']);
-$courseName   = trim($_POST['courseName']);
-$semester     = $_POST['semester'];
+$courseCode = trim($_POST['courseCode']);
+$courseName = trim($_POST['courseName']);
+$semester = $_POST['semester'];
+$yearLevel = $_POST['yearLevel'];
+$category = $_POST['category'];
+$credits = intval($_POST['credits']);
 
 // Convert semester name to single character for DB
-if ($semester === "Fall") {
-    $semesterDB = "F";
-} else if ($semester === "Spring") {
-    $semesterDB = "S";
-} else {
-    $semesterDB = $semester;
+$semesterDB = ($semester === "Fall") ? "F" : "S";
+
+// Get durations
+$lecDuration = intval($_POST['lecDuration']);
+$lec1Duration = !empty($_POST['lec1Duration']) ? intval($_POST['lec1Duration']) : $lecDuration;
+$lec2Duration = intval($_POST['lec2Duration']);
+$labDuration = intval($_POST['labDuration']);
+
+// Derive has_lab from labDuration
+$has_lab = ($labDuration > 0) ? 1 : 0;
+
+// Derive singleLec from lec2Duration
+$singleLec = ($lec2Duration == 0) ? 1 : 0;
+
+// Lab equipment is only required if has_lab is true
+$lab_equipment = ($has_lab == 1) ? $_POST['labEquipment'] : null;
+
+// Validate the data
+if ($lec1Duration > $lecDuration) {
+    die(json_encode([
+        'success' => false,
+        'message' => 'First lecture duration cannot exceed total lecture duration'
+    ]));
 }
 
-// Map form fields to DB columns
-$aYear = $_POST['yearLevel'];
-$cType = $_POST['category'];
-$credits = $_POST['credits'];
-
-// Process lab info: if no lab, force labDuration to 0.
-$hasLab = ($_POST['hasLab'] === "yes") ? 1 : 0;
-$labDuration = ($hasLab === 1 && isset($_POST['labDuration']) && $_POST['labDuration'] !== "") ? $_POST['labDuration'] : 0;
-
-// Process lecture durations:
-$lecDuration = $_POST['lecDuration'] ?: 0;
-$isDivided = ($_POST['isDivided'] === "yes") ? 0 : 1;
-if ($isDivided === 1) {
-    // For divided courses, use provided lec1Duration and compute lec2Duration
-    $lec1Duration = (isset($_POST['lec1Duration']) && $_POST['lec1Duration'] !== "") ? $_POST['lec1Duration'] : 0;
-    $lec2Duration = ($lec1Duration > 0 && $lecDuration >= $lec1Duration) ? ($lecDuration - $lec1Duration) : 0;
-} else {
-    // For single lecture courses, assign total to lec1 and set lec2 to 0.
-    $lec1Duration = $lecDuration;
-    $lec2Duration = 0;
+if ($has_lab && empty($lab_equipment)) {
+    die(json_encode([
+        'success' => false,
+        'message' => 'Lab equipment type is required for courses with lab'
+    ]));
 }
 
 $stmt = $conn->prepare("
-  UPDATE course
-  SET 
-    courseName    = ?, 
-    semester      = ?, 
-    aYear         = ?, 
-    cType         = ?, 
-    credits       = ?, 
-    has_lab       = ?, 
-    singleLec     = ?, 
-    lecDuration   = ?, 
-    labDuration   = ?, 
-    lec1Duration  = ?, 
-    lec2Duration  = ?
-  WHERE courseCode = ?
+    UPDATE course
+    SET 
+        courseName = ?, 
+        semester = ?, 
+        aYear = ?, 
+        cType = ?, 
+        credits = ?, 
+        has_lab = ?, 
+        singleLec = ?, 
+        lecDuration = ?, 
+        labDuration = ?, 
+        lec1Duration = ?, 
+        lec2Duration = ?,
+        lab_equipment = ?
+    WHERE courseCode = ?
 ");
 
 if (!$stmt) {
-    echo json_encode(["error" => "Prepare failed: " . $conn->error]);
+    echo json_encode([
+        'success' => false,
+        'message' => "Prepare failed: " . $conn->error
+    ]);
     exit;
 }
 
-$stmt->bind_param("ssisiiiiiiis",
+$stmt->bind_param("ssisiiiiiiiss",
     $courseName,
     $semesterDB,
-    $aYear,
-    $cType,
+    $yearLevel,
+    $category,
     $credits,
-    $hasLab,
-    $isDivided,
+    $has_lab,
+    $singleLec,
     $lecDuration,
     $labDuration,
     $lec1Duration,
     $lec2Duration,
+    $lab_equipment,
     $courseCode
 );
 
 if ($stmt->execute()) {
-    echo json_encode(["success" => "Course updated successfully"]);
+    echo json_encode([
+        'success' => true,
+        'message' => "Course updated successfully"
+    ]);
 } else {
-    echo json_encode(["error" => "Database update failed: " . $stmt->error]);
+    echo json_encode([
+        'success' => false,
+        'message' => "Database update failed: " . $stmt->error
+    ]);
 }
+
 $stmt->close();
 $conn->close();
 ?>
